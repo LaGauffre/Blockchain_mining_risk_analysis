@@ -145,7 +145,7 @@ def U_N_t(n, p, q, Z_0, rg):
 # print(U_N_t(n, p, q, Z_0, rg))
 
 
-# Function that produce simulate data for exponential time horizon
+# Function that produce simulated data for exponential time horizon
 def sim_data_self_T(t, λ, p, q, Z_0, K, rg):
     T_exp = rg.exponential(t, K)
     N_t = np.concatenate([rg.poisson(λ * T_exp[k], 1) for k in range(K)])
@@ -174,42 +174,12 @@ def V_T_self_MC(u, t, λ, p, q, b, c, sim_data):
     ψ = 1 - np.mean(no_ruin)
     return(np.array([ψ, np.sqrt(ψ*(1-ψ)/K)*norm.ppf(0.975), np.mean(R_t * no_ruin.astype('uint8')),\
                      np.std(R_t * no_ruin.astype('uint8'))/np.sqrt(K) * stu.ppf(0.975,K-1)]))
-
 # Test
 # Parameter operational cost
 # pkW, network_yearly_tW, pBTC, nBTC = 0.04, 77.78, 9938, 12.5
-# u, t, λ, p, q,Z_0, b = 10000, 6, 6, 0.1, 0.5,0, pBTC * nBTC
+# u, t, λ, p, q,Z_0, b = 10000, 24, 6, 0.1, 0.5,0, pBTC * nBTC
 # rg = Generator(PCG64(12))
-# c, sim_data = p * pkW * network_yearly_tW*10**9 / 365 / 24, sim_data_self_T(t, λ, p, q, Z_0, 3, rg)
-# η(p, q, b, λ, pkW, network_yearly_tW)
-# V_T_self_MC(u, t, λ, p, q, b, c, sim_data)
-# V_u_T_MC(u, t, b, c, p, q, λ, Z_0, 100000,rg)
+# c, sim_data = p * pkW * network_yearly_tW*10**9 / 365 / 24, sim_data_self_T_ES(t, λ, p, q, Z_0, 3000, rg)
 
-# Function to compute the revenue when doing selfish moning
-def V_u_T_MC(u, t, b, c, p, q, λ, Z_0, K,rg):
-    # Z_0 is the initial state of the Markov chain 
-    # K is the number of trajectories
-    T_exp = np.random.exponential(t, K)
-    # Number of blocks generated
-    N_t = np.array([np.random.poisson(λ * T_exp[k], 1)[0] for k in range(K)])
+# V_T_self_MC_ES(u, t, λ, p, q, b, c, sim_data)
 
-    # Jump times when N_t>0 
-    T = [np.append(np.append(0,np.sort(np.random.uniform(0, T_exp[k], N_t[k]))), T_exp[k]) for k in range(K)]
-
-    #labeling the blocks 1 =sam, 0 = Others
-    U = [U_N_t(N_t[k], p, q, Z_0, rg) for k in range(K)]
-
-    R_t = np.array([u - c * T_exp[k] + b * sum(U[k]) for k in range(K)])
-    # Surplus at check times
-    R_s = [np.array([u - c * T[k][i] + b*sum(U[k][0:i]) for i in range(N_t[k] + 2)]) 
-           for k in range(K)]
-
-    no_ruin = np.array([np.all(R_s[k] > 0) for k in range(K)])
-
-    expected_surplus = np.dot(no_ruin, R_t) / K
-    
-    return(expected_surplus)
-
-# Test
-# u, t, b, c, p, q,  λ, Z_0, K = 15, 20, 3, 0.2, 0.1, 0.5, 2,0, 1000
-# V_u_T_MC(u, t, b, c, p, q, λ, Z_0, K)
