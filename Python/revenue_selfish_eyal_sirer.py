@@ -26,6 +26,7 @@ from scipy.stats import norm
 from scipy.stats import t as stu
 from numpy.random import Generator, PCG64, SeedSequence
 
+
 # The functions herafter tends to share the following
 # parameters:
 # - u is the initial reserve
@@ -51,6 +52,7 @@ def U_N_t_ES(n, p, q, Z_0, rg):
     # Z_0 is the initial state of the Markove chain
     # rg sets the seed of the random number generator
     ξ = rg.binomial(1, p, size = n)
+
     # Sequence of miner's choice
     ζ = rg.binomial(1, q, size = n)
     # Sequence of buffer values 
@@ -58,6 +60,7 @@ def U_N_t_ES(n, p, q, Z_0, rg):
     Z_ES, Z_AG = [0], [0]
     U_ES, U_AG = [0], [0]
     for k in range(n):
+        
         ################################
         #Initialization of the buffer
         # if the buffer is empty
@@ -132,11 +135,97 @@ def U_N_t_ES(n, p, q, Z_0, rg):
 
     return({'U_ES':np.array(U_ES),'U_AG':np.array(U_AG)})
 
+def U_N_t_ES_bis(n, p, q, Z_0, rg):
+    # n is the number of blocks discovered by the network (the value of N_T)
+    # Sequence of block discovery
+    # Z_0 is the initial state of the Markove chain
+    # rg sets the seed of the random number generator
+    ξ = rg.binomial(1, p, size = n)
+
+    # Sequence of miner's choice
+    ζ = rg.binomial(1, q, size = n)
+    # Sequence of buffer values 
+    # Z = Z_N_t_ES(n, ξ, Z_0)
+    Z_ES, Z_AG = [0], [0]
+    U_ES, U_AG = [0], [0]
+    for k in range(n):
+        
+        ################################
+        #Initialization of the buffer
+        # if the buffer is empty
+        if Z_ES[-1] == 0:
+            U_ES.append(U_ES[-1] + 0)
+            Z_ES.append(Z_ES[-1] + ξ[k])
+        # If the buffer is empty and a fork is ongoing
+        elif Z_ES[-1] == 0.5:
+            Z_ES.append(0)
+            if ξ[k] == 1:
+                U_ES.append(U_ES[-1] + 2)
+            elif ξ[k] == 0 and ζ[k] == 1:
+                U_ES.append(U_ES[-1] + 1)
+            elif ξ[k] == 0 and ζ[k] == 0:
+                U_ES.append(U_ES[-1] + 0)
+        # If the buffer contains 1 block
+        elif Z_ES[-1] == 1:
+            U_ES.append(U_ES[-1] + 0)
+            #If Sam finds a block
+            if ξ[k] == 1:
+                Z_ES.append(Z_ES[-1] + ξ[k])
+            else:
+                Z_ES.append(0.5)
+        # If the buffer contains 2 blocks
+        elif Z_ES[-1] == 2:
+            #If Sam finds a block
+            if ξ[k] == 1:
+                U_ES.append(U_ES[-1] + 0)
+                Z_ES.append(Z_ES[-1] + ξ[k])
+            # If not then he releases all the block and get rewarded
+            else:
+                U_ES.append( U_ES[-1] + 2)
+                Z_ES.append(0)
+        # If the buffer contains more than 2 blocks
+        elif Z_ES[-1] > 2:
+            
+            #If Sam finds a block
+            if ξ[k] == 1:
+                Z_ES.append(Z_ES[-1] + ξ[k])
+                U_ES.append(U_ES[-1] + 0)
+            # If not then he releases all the block and get rewarded
+            else:
+                Z_ES.append(Z_ES[-1] + (ξ[k]-1))
+                U_ES.append(U_ES[-1] + 1)
+        ############################
+        if Z_AG[-1] == 0:
+            U_AG.append(U_AG[-1] + 0)
+            Z_AG.append(Z_AG[-1] + ξ[k])
+        # If the buffer is empty and a fork is ongoing
+        elif Z_AG[-1] == 0.5:
+            Z_AG.append(0)
+            if ξ[k] == 1:
+                U_AG.append(U_AG[-1] + 2)
+            elif ξ[k] == 0 and ζ[k] == 1:
+                U_AG.append(U_AG[-1] + 1)
+            elif ξ[k] == 0 and ζ[k] == 0:
+                U_AG.append(U_AG[-1] + 0)
+        # If the buffer contains 1 block
+        elif Z_AG[-1] == 1:
+            #If Sam finds a block
+            if ξ[k] == 1:
+                Z_AG.append(0)
+                U_AG.append(U_AG[-1] + 2)
+            else:
+                Z_AG.append(0.5)
+                U_AG.append(U_AG[-1] + 0)
+        
+    U_ES.append(U_ES[-1] + 0)
+    U_AG.append(U_AG[-1] + 0)
+
+    return({'U_ES':np.array(U_ES),'U_AG':np.array(U_AG)})
 
 
 # # Test
-# n, p, q, Z_0, rg = 20, 0.4, 0.5, 0, Generator(PCG64(14))
-# print(U_N_t_ES(n, p, q, Z_0, rg))
+# n, p, q, Z_0, rg = 10, 0.5, 0.5, 0, Generator(PCG64(14))
+# print(U_N_t_ES_bis(n, p, q, Z_0, rg))
 
 
 # Function that produce simulated data for exponential time horizon
@@ -144,7 +233,7 @@ def sim_data_self_T_ES(t, λ, p, q, Z_0, K, rg):
     T_exp = rg.exponential(t, K)
     N_t = np.concatenate([rg.poisson(λ * T_exp[k], 1) for k in range(K)])
     T = [np.append(np.append(0,np.sort(np.random.uniform(0, T_exp[k], N_t[k]))),T_exp[k]) for k in range(K)]
-    U = [U_N_t_ES(N_t[k], p, q, Z_0, rg) for k in range(K)]
+    U = [U_N_t_ES_bis(N_t[k], p, q, Z_0, rg) for k in range(K)]
     return({'T_exp':T_exp, 'N_t':N_t, 'T':T, 'U':U})
 
 
@@ -181,8 +270,8 @@ def V_T_self_MC_ES(u, t, λ, p, q, b, c, sim_data):
 
 # Test
 # Parameter operational cost
-pkW, network_yearly_tW, pBTC, nBTC = 0.04, 77.78, 9938, 12.5
-u, t, λ, p, q,Z_0, b = 250000, 12, 6, 0.2, 0.1,0, pBTC * nBTC
-rg = Generator(PCG64(123))
-c, sim_data = p * pkW * network_yearly_tW*10**9 / 365 / 24, sim_data_self_T_ES(t, λ, p, q, Z_0, 20000, rg)
-V_T_self_MC_ES(u, t, λ, p, q, b, c, sim_data)
+# pkW, network_yearly_tW, pBTC, nBTC = 0.04, 77.78, 9938, 12.5
+# u, t, λ, p, q,Z_0, b = 250000, 12, 6, 0.2, 0.1,0, pBTC * nBTC
+# rg = Generator(PCG64(123))
+# c, sim_data = p * pkW * network_yearly_tW*10**9 / 365 / 24, sim_data_self_T_ES(t, λ, p, q, Z_0, 20000, rg)
+# V_T_self_MC_ES(u, t, λ, p, q, b, c, sim_data)
