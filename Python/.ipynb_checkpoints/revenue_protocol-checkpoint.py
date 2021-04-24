@@ -234,6 +234,16 @@ def V_T_bis(u, t, b, p, λ, pkW, W):
                                           method='brentq').root
     return(γ * t + u - γ * t * np.exp(rho_star * u))
 
+def ψ_T_bis(u, t, b, p, λ, pkW, W):
+    c = p * pkW * W
+    def f(x): 
+            return(c * t * x + (1 + p * λ * t) - p *λ * t * np.exp(x * b) )
+    rho_star = scipy.optimize.root_scalar(f, bracket=[np.log(c / p * b * λ) / b-10, 
+                                                      np.log(c / p / b / λ) / b],
+                                          method='brentq').root
+    return(np.exp(rho_star * u))
+
+
 # # Test
 u, t, b, p, λ, pkW, network_yearly_tW = 200000, 28 * 14,12.5* 6943.7, 0.2, 6, 0.02, 77.78 
 # V_MC = np.array([V_u_t_MC( u, t, b, c, p, λ, 1000) for i in range(1000)])
